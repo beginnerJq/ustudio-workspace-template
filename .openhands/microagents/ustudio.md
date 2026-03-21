@@ -52,6 +52,15 @@ getCameraViewpoint(): CameraViewpoint;
 setCameraViewpoint(viewpoint: CameraViewpoint): void;
 ```
 
+> **注意：** flyToObject 对 Group 类型的空对象（没有子 mesh）会报 "Box3 is empty" 警告。建议始终用 try-catch 包裹：
+> ```typescript
+> try {
+>   flyToObject(id, { enableTransition: true });
+> } catch(e) {
+>   console.warn('flyToObject failed:', e);
+> }
+> ```
+
 ### 对象查询
 
 ```typescript
@@ -70,6 +79,30 @@ getAllObjects(): Object3D[];
 /** 获取对象或整个场景的包围盒 */
 getBoundingBox(id?: string): Box3;
 ```
+
+### 重要：对象 ID 的正确用法
+
+facade 中所有接收 `idOrName` 参数的函数（`flyToObject`、`highlight`、`isolate` 等），内部会先尝试 `objectManager.getById()`，找不到再尝试 `getByName()`。
+
+**正确做法——先查询再操作：**
+
+```typescript
+// ✅ 正确：先查到对象，用对象的 name 或 id 操作
+const floors = getObjectsByName('3F');
+if (floors.length > 0) {
+  const floorId = floors[0].name;
+  isolate([floorId]);
+  flyToObject(floorId, { enableTransition: true });
+}
+```
+
+```typescript
+// ❌ 错误：直接用字符串，如果 objectManager 里没有注册这个名称会抛异常
+isolate(['3F']);
+flyToObject('3F');
+```
+
+`isolate()` 接收的是 ID 数组，每个 ID 必须是 objectManager 中已注册的对象 ID。
 
 ### 视觉特效
 
@@ -169,12 +202,22 @@ removeLight(id: string): void;
 ### 工具
 
 ```typescript
-/** 截图并返回 base64 数据 */
+/** 截图并返回完整的 data URL（如 "data:image/png;base64,xxxxx"） */
 screenshot(options?: ScreenshotOptions): Promise<string>;
 
 /** 获取底层 Viewer 实例（escape hatch，谨慎使用） */
 getViewer(): Viewer;
 ```
+
+> **注意：** `screenshot()` 返回的是完整的 data URL（如 `"data:image/png;base64,xxxxx"`），可以直接赋值给 `<img>` 的 `src`。不要再拼接 `"data:image/png;base64,"` 前缀，否则会导致 ERR_INVALID_URL。
+> ```typescript
+> // ✅ 正确
+> const dataUrl = await screenshot();
+> <img src={dataUrl} />
+>
+> // ❌ 错误：双重编码
+> <img src={`data:image/png;base64,${dataUrl}`} />
+> ```
 
 ---
 
@@ -268,40 +311,53 @@ export default function AlarmHandler() {
 
 ### 示例 3：楼层切换
 
-隐藏其他楼层 → isolate 目标楼层 → flyToObject
+先查询对象 → isolate 目标楼层 → flyToObject（带 try-catch）
 
 ```tsx
-import { isolate, showAll, flyToObject, getObjectsByType } from '@ustudio/facade';
+import { getObjectsByName, isolate, showAll, flyToObject, highlight, removeHighlight } from '@ustudio/facade';
 import { useState } from 'react';
 
-export default function FloorSwitcher() {
-  const [currentFloor, setCurrentFloor] = useState<string | null>(null);
-  const floors = getObjectsByType('floor');
+const FLOORS = ['1F', '2F', '3F', '4F', '5F'];
 
-  const switchFloor = (floorId: string) => {
-    if (currentFloor === floorId) {
+export default function FloorSwitcher() {
+  const [activeFloor, setActiveFloor] = useState<string | null>(null);
+
+  const handleFloorClick = (floorName: string) => {
+    if (activeFloor === floorName) {
       showAll();
-      setCurrentFloor(null);
-    } else {
-      isolate([floorId]);
-      flyToObject(floorId, { enableTransition: true });
-      setCurrentFloor(floorId);
+      setActiveFloor(null);
+      return;
     }
+    const objects = getObjectsByName(floorName);
+    if (objects.length === 0) {
+      console.warn(`Floor ${floorName} not found`);
+      return;
+    }
+    const ids = objects.map(o => o.name);
+    isolate(ids);
+    try {
+      flyToObject(ids[0], { enableTransition: true });
+    } catch(e) {
+      console.warn('flyToObject failed:', e);
+    }
+    setActiveFloor(floorName);
   };
 
   return (
-    <div className="floor-switcher">
-      <h3>楼层切换</h3>
-      {floors.map(floor => (
-        <button
-          key={floor.id}
-          className={currentFloor === floor.id ? 'active' : ''}
-          onClick={() => switchFloor(floor.id)}
-        >
-          {floor.name}
+    <div style={{ position: 'fixed', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(20,20,30,0.85)', borderRadius: 12, padding: 16, color: '#fff' }}>
+      <h3 style={{ margin: '0 0 12px' }}>楼层切换</h3>
+      {FLOORS.map(f => (
+        <button key={f} onClick={() => handleFloorClick(f)}
+          style={{ display: 'block', width: '100%', padding: '10px', margin: '4px 0', borderRadius: 6, border: 'none', cursor: 'pointer', background: activeFloor === f ? '#22c55e' : 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 14 }}>
+          {f}
         </button>
       ))}
-      {currentFloor && <button onClick={() => { showAll(); setCurrentFloor(null); }}>显示全部</button>}
+      {activeFloor && (
+        <button onClick={() => { showAll(); setActiveFloor(null); }}
+          style={{ display: 'block', width: '100%', padding: '10px', margin: '8px 0 0', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'transparent', color: '#fff', cursor: 'pointer', fontSize: 14 }}>
+          显示全部
+        </button>
+      )}
     </div>
   );
 }
