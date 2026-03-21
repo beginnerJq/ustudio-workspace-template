@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>uStudio</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; }
+      #scene-container { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+      #root { position: relative; z-index: 1; pointer-events: none; }
+      #root * { pointer-events: auto; }
+    </style>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "/node_modules/three/build/three.webgpu.js",
+        "three/webgpu": "/node_modules/three/build/three.webgpu.js",
+        "three/tsl": "/node_modules/three/build/three.tsl.js",
+        "three/addons/": "/node_modules/three/examples/jsm/",
+        "camera-controls": "/node_modules/camera-controls/dist/camera-controls.module.js",
+        "u-space": "/node_modules/u-space/dist/index.js",
+        "u-space/plugins/u-manager": "/node_modules/u-space/dist/plugins/u-manager/index.js"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <div id="root"></div>
+
+    <!-- 3D 场景初始化：绕过 Vite transform，用 importmap 原生加载 -->
+    <script type="module">
+      import { Viewer, MaterialEffects, LightManager } from 'u-space';
+      import { SceneLoader } from 'u-space/plugins/u-manager';
+
+      // 暴露给 facade.ts 使用（避免 Vite 打包 u-space）
+      window.__MaterialEffects = MaterialEffects;
+      window.__LightManager = LightManager;
+
+      async function initScene() {
+        const container = document.getElementById('scene-container');
+        const viewer = new Viewer({ el: container });
+        await viewer.init();
+
+        // 离线模式：从 public/scenes/demo/ 加载
+        const loader = new SceneLoader(viewer);
+        loader.setPath('/scenes/demo');
+        const group = await loader.loadAsync();
+        viewer.scene.add(group);
+        await viewer.controls.flyToObject(group);
+
+        // 暴露给 React 层
+        window.__viewer = viewer;
+        window.dispatchEvent(new CustomEvent('ustudio:viewer-ready', { detail: { viewer } }));
+
+        console.log('[ustudio] Scene loaded, objects:', viewer.objectManager.size);
+      }
+
+      initScene().catch(err => {
+        console.error('[ustudio] Scene init failed:', err);
+        window.dispatchEvent(new CustomEvent('ustudio:viewer-error', { detail: { error: err } }));
+      });
+    </script>
+
+    <!-- React UI 层：通过 Vite 正常打包 -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

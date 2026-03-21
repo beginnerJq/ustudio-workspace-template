@@ -1,0 +1,28 @@
+{
+  "name": "ustudio-template",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "u-space": "^0.0.11",
+    "three": "^0.183.1",
+    "camera-controls": "^3.1.2",
+    "3d-tiles-renderer": "^0.4.19",
+    "@takram/three-geospatial": "^0.6.0"
+  },
+  "devDependencies": {
+    "vite": "^6.3.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "typescript": "^5.7.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@types/three": "^0.183.1"
+  }
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scene Test (importmap)</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    #app { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.webgpu.js",
+      "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.webgpu.js",
+      "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.tsl.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/",
+      "camera-controls": "https://cdn.jsdelivr.net/npm/camera-controls@3.1.2/dist/camera-controls.module.js",
+      "u-space": "/node_modules/u-space/dist/index.js",
+      "u-space/plugins/u-manager": "/node_modules/u-space/dist/plugins/u-manager/index.js"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import { Color, GridHelper } from 'three/webgpu';
+    import { Viewer } from 'u-space';
+    import { SceneLoader } from 'u-space/plugins/u-manager';
+
+    const viewer = new Viewer({ el: document.getElementById('app') });
+    await viewer.init();
+
+    viewer.scene.background = new Color(0x444466);
+    viewer.scene.add(new GridHelper(100, 100));
+    await viewer.render();
+    console.log('Grid rendered');
+
+    const loader = new SceneLoader(viewer);
+    loader.setPath('/scenes/demo');
+    const group = await loader.loadAsync();
+    viewer.scene.add(group);
+    viewer.controls.flyToObject(group);
+    await viewer.render();
+    console.log('Scene loaded, objects:', viewer.objectManager.size);
+  </script>
+</body>
+</html>
