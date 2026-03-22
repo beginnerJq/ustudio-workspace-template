@@ -93,6 +93,28 @@ if (error) return 加载失败;
 </div>
 ```
 
+### 前后端 API 代理规则（生成后端服务时必须遵守）
+
+当项目需要后端服务（Express/NestJS 等）时，Vite 代理配置必须避免路径重复：
+```typescript
+// ✅ 正确：用 /backend 做代理前缀，rewrite 到 /api
+// vite.config.ts
+proxy: {
+  '/backend': {
+    target: 'http://localhost:8012',
+    changeOrigin: true,
+    rewrite: (path) => path.replace(/^\/backend/, '/api'),
+  }
+}
+// 前端代码
+const API_BASE = '/backend';
+fetch(`${API_BASE}/devices`)  // → /backend/devices → 代理到 /api/devices
+
+// ❌ 错误：API_BASE 和路径都含 /api，导致 /api/api/devices
+const API_BASE = '/api';
+fetch(`${API_BASE}/api/devices`)  // → /api/api/devices → 404
+```
+
 ---
 
 ## API 速查 — `@ustudio/facade`
