@@ -20,6 +20,18 @@ cd /workspace/project/ustudio-workspace-template && npm install && nohup npx vit
 
 启动后用户即可在应用面板中看到 3D 场景预览。之后再响应用户的业务需求。
 
+### 重要提示（CRITICAL）
+
+1. **不要尝试验证 3D 场景是否加载成功**。OpenHands 的 headless 浏览器不支持 WebGPU，你在浏览器中看不到 3D 内容，但用户在应用面板中可以正常看到。不要因为浏览器截图看不到 3D 内容就认为场景加载失败。
+
+2. **不要直接访问 window.__viewer**。viewer 由 SceneProviderOffline 自动管理，facade 函数内部会自动获取 viewer。你只需要正确调用 facade 函数即可。
+
+3. **不要尝试用 setViewer() 手动初始化 viewer**。这是 SceneProvider 内部的事，AI 代码不应该调用 setViewer。
+
+4. **信任 facade 函数能正常工作**。isolate、highlight、flyToObject、getAllObjects 等函数在用户的浏览器中是正常工作的。如果你调用了这些函数但在 headless 浏览器中看不到效果，那是正常的——用户能看到。
+
+5. **getAllObjects() 在 viewer 就绪后返回真实数据**。不要因为在 headless 浏览器中测试时返回空数组就改用模拟数据。正确做法是在 useEffect 中检查 viewer（来自 ViewerContext）是否存在，存在时调用 getAllObjects()。
+
 ---
 
 ## CRITICAL — 绝对禁止
