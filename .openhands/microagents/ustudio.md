@@ -198,6 +198,8 @@ flyToObject('3F');
 
 `isolate()` 接收的是 ID 数组，每个 ID 必须是 objectManager 中已注册的对象 ID。
 
+> **后端设备 ID 必须匹配 3D 场景对象名称**。如果后端返回 `gate_001` 但场景里叫 `闸机扇叶`，highlight 和 flyToObject 会找不到对象。后端生成设备数据时，ID/name 字段应该使用 getAllObjects() 探索到的真实对象名称。
+
 ### 视觉特效
 
 ```typescript
@@ -257,6 +259,19 @@ onHover(idOrName: string, enterCallback: (event: MouseEvent) => void, leaveCallb
 /** 移除事件监听 */
 removeEventListener(idOrName: string, type: string, callback: Function): void;
 ```
+
+> **重要区分：facade.onClick vs React onClick**
+> - `facade.onClick(id, callback)` — 注册 3D 场景中物体的点击事件，用户需要点击 3D 模型才会触发
+> - React `onClick` — UI 列表/按钮的点击事件
+>
+> 当用户点击 UI 设备列表时，应该在 React onClick 里直接调用 highlight + flyToObject：
+> ```tsx
+> // ✅ 正确：UI 列表点击 → 直接调 facade
+> <div onClick={() => { highlight(deviceId); flyToObject(deviceId); }}>设备名</div>
+>
+> // ❌ 错误：用 facade.onClick 注册 UI 点击（这是 3D 对象点击，不是 UI 点击）
+> facade.onClick(deviceId, () => { ... });
+> ```
 
 ### 标注
 
