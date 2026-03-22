@@ -509,3 +509,49 @@ Response.result: { rows: EntityInstance[], total_count: number }
 - `src/components/` — 通用组件，你可以自由创建和修改。
 - `src/App.tsx` — 路由配置，你可以添加新路由。
 - **其他一切文件都是只读的。**
+
+---
+
+## 开发流程规范（CRITICAL — 必须遵守）
+
+当用户要求构建任何业务应用时，必须严格按以下步骤执行，不可跳过任何步骤：
+
+### 第一步：场景探索（必须先执行）
+
+在写任何业务代码之前，先运行以下代码探索场景对象：
+
+```typescript
+const all = getAllObjects();
+console.log('总对象数:', all.length);
+
+// 按类型分组统计
+const typeMap: Record<string, any[]> = {};
+all.forEach(obj => {
+  const t = obj.type || 'unknown';
+  if (!typeMap[t]) typeMap[t] = [];
+  typeMap[t].push(obj);
+});
+Object.entries(typeMap).forEach(([type, objs]) => {
+  console.log(`${type} (${objs.length}):`, objs.slice(0, 20).map(o => o.name));
+});
+```
+
+将探索结果输出给用户确认，不要跳过这一步。
+
+### 第二步：识别关键对象
+
+根据探索结果：
+- **楼层对象**：Group 类型，名称含 `F` 或 `层` 的（如 1F, 2F, 3F...）
+- **设备对象**：Model 类型（如 Escalator, 闸机, 消火栓...）
+- **空间对象**：ExtrudeMesh 类型（如 Space_48, Space_93...）
+
+用真实的对象名称构建 UI，**绝对不要硬编码假数据**。
+
+### 第三步：基于真实数据构建 UI
+
+- 楼层导航用探索到的真实楼层名称
+- 设备列表用探索到的真实设备对象
+- 所有 3D 操作（isolate/highlight/flyToObject/breathe）使用真实对象 ID
+- UI 面板使用暗色半透明背景（`background: rgba(10,15,28,0.92)`）
+- 每个面板 `position: fixed` 独立定位，设置 `pointerEvents: 'auto'`
+- 中间区域留给 3D 场景，不要遮挡
