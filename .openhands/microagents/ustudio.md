@@ -301,12 +301,19 @@ getViewer(): Viewer;
 
 ```tsx
 import { getAllObjects, highlight, removeHighlight, flyToObject, onClick } from '@ustudio/facade';
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { ViewerContext } from '../core/ViewerContext';
 
 export default function DeviceMonitor() {
+  const { viewer } = useContext(ViewerContext);
+  const [sensors, setSensors] = useState<any[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
 
-  const sensors = getAllObjects().filter(obj => obj.name.startsWith('sensor_'));
+  useEffect(() => {
+    if (!viewer) return;
+    const all = getAllObjects();
+    setSensors(all.filter(obj => obj.name.startsWith('sensor_')));
+  }, [viewer]);
 
   const handleSensorClick = (sensorId: string) => {
     if (selectedDevice) removeHighlight(selectedDevice);
@@ -316,9 +323,11 @@ export default function DeviceMonitor() {
   };
 
   // 为每个传感器注册点击事件
-  sensors.forEach(sensor => {
-    onClick(sensor.name, () => handleSensorClick(sensor.name));
-  });
+  useEffect(() => {
+    sensors.forEach(sensor => {
+      onClick(sensor.name, () => handleSensorClick(sensor.name));
+    });
+  }, [sensors]);
 
   return (
     <div className="monitor-panel">
@@ -437,22 +446,40 @@ export default function FloorSwitcher() {
 
 ### 场景探索（首次开发前必须执行）
 
-每个场景的对象结构不同。在生成业务代码之前，先用以下代码探索场景：
-```typescript
-const all = getAllObjects();
-console.log('总对象数:', all.length);
+每个场景的对象结构不同。在生成业务代码之前，先创建临时探索页面渲染对象信息（不要用 console.log）：
 
-// 按类型分组
-const typeMap: Record<string, any[]> = {};
-all.forEach(obj => {
-  const t = obj.type || 'unknown';
-  if (!typeMap[t]) typeMap[t] = [];
-  typeMap[t].push(obj);
-});
-Object.entries(typeMap).forEach(([type, objs]) => {
-  console.log(`${type} (${objs.length}):`, objs.slice(0, 5).map(o => o.name));
-});
+```tsx
+// 临时写入 src/pages/index.tsx，探索完后再替换为业务代码
+import { useContext, useState, useEffect } from 'react';
+import { ViewerContext } from '../core/ViewerContext';
+import { getAllObjects } from '@ustudio/facade';
+
+export default function SceneExplorer() {
+  const { viewer, loading } = useContext(ViewerContext);
+  const [info, setInfo] = useState('等待场景加载...');
+
+  useEffect(() => {
+    if (!viewer) return;
+    const all = getAllObjects();
+    const typeMap: Record<string, string[]> = {};
+    all.forEach(obj => {
+      const t = obj.type || 'unknown';
+      if (!typeMap[t]) typeMap[t] = [];
+      if (typeMap[t].length < 20) typeMap[t].push(obj.name);
+    });
+    const lines = [`总对象数: ${all.length}`];
+    Object.entries(typeMap).forEach(([type, names]) => {
+      lines.push(`${type} (${names.length}): ${names.join(', ')}`);
+    });
+    setInfo(lines.join('\n'));
+  }, [viewer]);
+
+  if (loading) return <div style={{color:'white',padding:20}}>场景加载中...</div>;
+  return <pre style={{color:'white',padding:20,whiteSpace:'pre-wrap',position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',overflow:'auto',pointerEvents:'auto',zIndex:999}}>{info}</pre>;
+}
 ```
+
+用 `browser_get_content` 读取页面上显示的对象信息，然后基于真实数据编写业务组件。
 
 根据探索结果：
 - **Group 类型**通常是楼层或分组容器，可用 `isolate` 隔离显示
@@ -518,25 +545,40 @@ Response.result: { rows: EntityInstance[], total_count: number }
 
 ### 第一步：场景探索（必须先执行）
 
-在写任何业务代码之前，先运行以下代码探索场景对象：
+在写任何业务代码之前，先创建一个临时探索页面，把场景对象信息渲染到页面上（不要用 console.log，因为你看不到浏览器控制台）：
 
-```typescript
-const all = getAllObjects();
-console.log('总对象数:', all.length);
+```tsx
+// 临时写入 src/pages/index.tsx，探索完后再替换为业务代码
+import { useContext, useState, useEffect } from 'react';
+import { ViewerContext } from '../core/ViewerContext';
+import { getAllObjects } from '@ustudio/facade';
 
-// 按类型分组统计
-const typeMap: Record<string, any[]> = {};
-all.forEach(obj => {
-  const t = obj.type || 'unknown';
-  if (!typeMap[t]) typeMap[t] = [];
-  typeMap[t].push(obj);
-});
-Object.entries(typeMap).forEach(([type, objs]) => {
-  console.log(`${type} (${objs.length}):`, objs.slice(0, 20).map(o => o.name));
-});
+export default function SceneExplorer() {
+  const { viewer, loading } = useContext(ViewerContext);
+  const [info, setInfo] = useState('等待场景加载...');
+
+  useEffect(() => {
+    if (!viewer) return;
+    const all = getAllObjects();
+    const typeMap: Record<string, string[]> = {};
+    all.forEach(obj => {
+      const t = obj.type || 'unknown';
+      if (!typeMap[t]) typeMap[t] = [];
+      if (typeMap[t].length < 20) typeMap[t].push(obj.name);
+    });
+    const lines = [`总对象数: ${all.length}`];
+    Object.entries(typeMap).forEach(([type, names]) => {
+      lines.push(`${type} (${names.length}): ${names.join(', ')}`);
+    });
+    setInfo(lines.join('\n'));
+  }, [viewer]);
+
+  if (loading) return <div style={{color:'white',padding:20}}>场景加载中...</div>;
+  return <pre style={{color:'white',padding:20,whiteSpace:'pre-wrap',position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',overflow:'auto',pointerEvents:'auto',zIndex:999}}>{info}</pre>;
+}
 ```
 
-将探索结果输出给用户确认，不要跳过这一步。
+用 `browser_get_content` 读取页面上显示的对象信息，然后基于这些真实数据编写业务组件。
 
 ### 第二步：识别关键对象
 
